@@ -29,6 +29,11 @@ function drawCloud(ctx, x, y) {
 }
 
 function drawHouse(ctx) {
+    //draw chimney
+    ctx.fillStyle = 'rgb(102,102,102)';
+    ctx.fillRect(550, 160, 35, 100);
+
+    //draw roof
     ctx.fillStyle = 'rgb(204,0,0)';
     ctx.beginPath();
     ctx.moveTo(375, 300);
@@ -37,8 +42,25 @@ function drawHouse(ctx) {
     ctx.lineTo(375, 300);
     ctx.fill();
 
+    //draw wall
     ctx.fillStyle = 'rgb(191,144,0)';
     ctx.fillRect(375, 300, 250, 180);
+
+    // draw window
+    ctx.fillStyle = 'rgb(255,217,102)';
+    ctx.fillRect(455, 320, 90, 100);
+
+    //draw window frame
+    ctx.strokeStyle = 'rgb(93,92,89)';
+    ctx.beginPath();
+    ctx.moveTo(455, 370);
+    ctx.lineTo(545, 370);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(500, 320);
+    ctx.lineTo(500, 420);
+    ctx.stroke();
 }
 
 function draw() {
