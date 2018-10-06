@@ -1,4 +1,28 @@
 const SUN_SPEED = 0.2;
+const SUN_RADIUS = 40;
+const HORIZON = 0.75;
+const MAX_CLOUDS = 5;
+const CLOUDS_MAX_HEIGHT = 0.15;
+const CLOUD_SIZE_X = 50;
+const SKY_COLOR = 240;
+
+function HslColor({
+    hue,
+    saturation,
+    lightness
+}) {
+    this.h = hue;
+    this.s = saturation;
+    this.l = lightness;
+    this.MAX_HUE = 360;
+
+    this.toFillStyle = function () {
+        const h = Math.floor(this.h);
+        const s = this.s * 100;
+        const l = this.l * 100;
+        return "hsl(" + h + "," + s + "%," + l + "%)";
+    }
+}
 
 function Sun({
     startX,
@@ -12,20 +36,38 @@ function Sun({
     this.angle = angle;
 }
 
-function drawSky({ctx, width, height}) {
-    ctx.fillStyle = 'rgb(60,120,216)';
-    ctx.fillRect(0, 0, width, 0.75 * height);
+function Cloud({
+    startX,
+    startY,
+    speed,
+    amplitude,
+    frequency
+}) {
+    this.x = startX;
+    this.y = startY;
+    this.distanceY = startY;
+    this.speed = speed;
+    this.amplitude = amplitude;
+    this.frequency = frequency;
+}
+
+function Sky({color}) {
+    this.color = color;
+}
+
+function drawSky({ctx, sky, width, height}) {
+    ctx.fillStyle = sky.color.toFillStyle();
+    ctx.fillRect(0, 0, width, HORIZON * height);
+}
+
+function recolorSky({sky, angle}) {
+    const lightness = 1 - (Math.sin(angle) + 1) * 0.5;
+    sky.color.l = lightness;
 }
 
 function drawGrass({ctx, width, height}) {
     ctx.fillStyle = 'rgb(106,168,79)';
-    ctx.fillRect(0, 0.75 * height, width, 0.25 * height);
-}
-
-function drawSkyObjects(ctx) {
-    drawCloud(ctx, 130, 120);
-    drawCloud(ctx, 400, 30);
-    drawCloud(ctx, 700, 100);
+    ctx.fillRect(0, HORIZON * height, width, (1 - HORIZON) * height);
 }
 
 function drawSun({ctx, sun}) {
@@ -35,20 +77,39 @@ function drawSun({ctx, sun}) {
     ctx.fill();
 }
 
-function moveSun({dT, sun, boxWidth, boxHeight}) {
-    const deltaAngle = dT * SUN_SPEED;
+function moveSun({sun, dt, boxWidth, boxHeight}) {
+    const deltaAngle = dt * SUN_SPEED;
     sun.angle = (sun.angle + deltaAngle) % (2 * Math.PI);
-    sun.x = 400 * Math.sin(-sun.angle) + boxWidth / 2;
-    sun.y = 300 * Math.cos(sun.angle) + 0.75 * boxHeight;
+    sun.x = 400 * Math.cos(-sun.angle) + boxWidth / 2;
+    sun.y = 400 * Math.sin(sun.angle) + HORIZON * boxHeight;
 }
 
-function drawCloud(ctx, x, y) {
-    ctx.fillStyle = 'rgb(207,226,243)';
+function drawCloud({ctx, cloud, radiusX, radiusY}) {
     ctx.beginPath();
-    ctx.ellipse(x + 60, y + 50, 60, 30, 0, 0, 2 * Math.PI);
-    ctx.ellipse(x + 100, y + 30, 60, 30, 0, 0, 2 * Math.PI);
-    ctx.ellipse(x + 150, y + 50, 60, 30, 0, 0, 2 * Math.PI);
+    ctx.fillStyle = 'rgb(207,226,243)';
+    ctx.ellipse(cloud.x + radiusX, cloud.y + 1.7 * radiusY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+    ctx.ellipse(cloud.x + 1.7 * radiusX, cloud.y + radiusY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+    ctx.ellipse(cloud.x + 2.5 * radiusX, cloud.y + 1.7 * radiusY, radiusX, radiusY, 0, 0, 2 * Math.PI);
     ctx.fill();
+}
+
+function createCloud({boxWidth, boxHeight}) {
+    const startX = Math.random() * boxWidth;
+    const startY = Math.random() * CLOUDS_MAX_HEIGHT * boxHeight + 20;
+    const speed = Math.random() * 80 + 20;
+    const amplitude = Math.random() * 20;
+    const frequency = Math.random() * 100 + 30;
+    return new Cloud({startX, startY, speed, amplitude, frequency})
+}
+
+function moveCloud({cloud, dt, boxWidth, boxHeight}) {
+    const deltaX = cloud.speed * dt;
+    cloud.x -= deltaX;
+    const deltaPhase = (cloud.x / cloud.frequency) % 2 * Math.PI;
+    cloud.y = cloud.distanceY + (cloud.amplitude * Math.sin(deltaPhase));
+    if (cloud.x + 2.5 * CLOUD_SIZE_X < 0) {
+        cloud.x = boxWidth;
+    }
 }
 
 function drawHouse(ctx) {
@@ -86,16 +147,22 @@ function drawHouse(ctx) {
     ctx.stroke();
 }
 
-function redraw({ctx, width, height, sun}) {
-    drawSky({ctx, width, height});
+function redraw({ctx, width, height, sun, clouds, sky}) {
+    drawSky({ctx, sky, width, height});
     drawSun({ctx, sun});
-    drawSkyObjects(ctx);
     drawGrass({ctx, width, height});
     drawHouse(ctx);
+    for (let cloud of clouds) {
+        drawCloud({ctx, cloud, radiusX: CLOUD_SIZE_X, radiusY: 30})
+    }
 }
 
-function update({sun, dT, boxWidth, boxHeight}) {
-    moveSun({dT, sun, boxWidth, boxHeight});
+function update({sun, clouds, sky, dt, boxWidth, boxHeight}) {
+    moveSun({sun, dt, boxWidth, boxHeight});
+    recolorSky({sky, angle: sun.angle});
+    for (const cloud of clouds) {
+        moveCloud({cloud, dt, boxWidth, boxHeight});
+    }
 }
 
 function main() {
@@ -105,29 +172,39 @@ function main() {
     
     const ctx = canvasEl.getContext('2d');
 
-    const SUN_RADIUS = 40;
-
     let sun = new Sun({
         startX: 0.15 * width,
-        startY: 0.75 * height,
+        startY: HORIZON * height,
         radius: SUN_RADIUS,
         angle: 0.5 * Math.PI
     });
 
-    redraw({ctx, width, height, sun});
+    let sky = new Sky({
+        color: new HslColor({
+            hue: SKY_COLOR,
+            saturation: 0.5,
+            lightness: 0.5
+        })
+    });
+
+    let clouds = [];
+    for (let i = 0; i < MAX_CLOUDS; i++) {
+        clouds.push(createCloud({
+            boxWidth: width,
+            boxHeight: height
+        }));
+    }
+
+    redraw({ctx, width, height, sun, clouds, sky});
 
     let lastTimestamp = Date.now();
     const animateFn = () => {
         const currentTimestamp = Date.now();
         const deltaTime = (currentTimestamp - lastTimestamp) * 0.001;
         lastTimestamp = currentTimestamp;
-        update({sun, dT: deltaTime, boxWidth: width, boxHeight: height});
-        redraw({ctx, width, height, sun});
+        update({sun, clouds, sky, dt: deltaTime, boxWidth: width, boxHeight: height});
+        redraw({ctx, width, height, sun, clouds, sky});
         requestAnimationFrame(animateFn);
     };
     animateFn();
 }
-
-window.onload = function() {
-    main();
-};
