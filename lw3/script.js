@@ -1,9 +1,11 @@
 const SUN_SPEED = 0.2;
 const SUN_RADIUS = 40;
+const SUN_ORBIT = 400;
 const HORIZON = 0.75;
-const MAX_CLOUDS = 5;
+const MAX_CLOUDS = 3;
 const CLOUDS_MAX_HEIGHT = 0.15;
 const CLOUD_SIZE_X = 50;
+const CLOUD_SIZE_Y = 30;
 const SKY_COLOR = 240;
 
 function HslColor({
@@ -80,8 +82,8 @@ function drawSun({ctx, sun}) {
 function moveSun({sun, dt, boxWidth, boxHeight}) {
     const deltaAngle = dt * SUN_SPEED;
     sun.angle = (sun.angle + deltaAngle) % (2 * Math.PI);
-    sun.x = 400 * Math.cos(-sun.angle) + boxWidth / 2;
-    sun.y = 400 * Math.sin(sun.angle) + HORIZON * boxHeight;
+    sun.x = SUN_ORBIT * Math.cos(-sun.angle) + boxWidth / 2;
+    sun.y = SUN_ORBIT * Math.sin(sun.angle) + HORIZON * boxHeight;
 }
 
 function drawCloud({ctx, cloud, radiusX, radiusY}) {
@@ -105,9 +107,9 @@ function createCloud({boxWidth, boxHeight}) {
 function moveCloud({cloud, dt, boxWidth, boxHeight}) {
     const deltaX = cloud.speed * dt;
     cloud.x -= deltaX;
-    const deltaPhase = (cloud.x / cloud.frequency) % 2 * Math.PI;
+    const deltaPhase = (cloud.x / cloud.frequency) % (2 * Math.PI)  ;
     cloud.y = cloud.distanceY + (cloud.amplitude * Math.sin(deltaPhase));
-    if (cloud.x + 2.5 * CLOUD_SIZE_X < 0) {
+    if ((cloud.x + 3.5 * CLOUD_SIZE_X) < 0) {
         cloud.x = boxWidth;
     }
 }
@@ -153,7 +155,7 @@ function redraw({ctx, width, height, sun, clouds, sky}) {
     drawGrass({ctx, width, height});
     drawHouse(ctx);
     for (let cloud of clouds) {
-        drawCloud({ctx, cloud, radiusX: CLOUD_SIZE_X, radiusY: 30})
+        drawCloud({ctx, cloud, radiusX: CLOUD_SIZE_X, radiusY: CLOUD_SIZE_Y})
     }
 }
 
